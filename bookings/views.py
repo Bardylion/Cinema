@@ -13,6 +13,8 @@ from .serializers import (
     TicketSerializer,
     TicketDetailSerializer,
 )
+from django.shortcuts import get_object_or_404
+
 class IsAdminOrCreateOnly(BasePermission):
     def has_permission(self, request, view):
         if request.method == "POST":
@@ -84,3 +86,14 @@ class TicketDetailView(RetrieveAPIView):
     queryset = Ticket.objects.all()
     serializer_class = TicketDetailSerializer
     permission_classes = [IsAdminUser]
+
+class BookingByCodeView(RetrieveAPIView):
+    serializer_class = BookingDetailSerializer
+    permission_classes = []
+    lookup_field = "booking_code"
+
+    def get_object(self):
+        return get_object_or_404(
+            Booking,
+            booking_code=self.kwargs["booking_code"],
+        )

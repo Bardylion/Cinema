@@ -5,7 +5,7 @@ from .models import Booking, Ticket
 from cinema.models import Session, Seat
 import io
 import qrcode
-
+from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 
@@ -57,7 +57,7 @@ class TicketSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-
+    
 class TicketDetailSerializer(serializers.ModelSerializer):
     movie = serializers.CharField(source="session.movie.title")
     hall = serializers.CharField(source="session.hall.name")
