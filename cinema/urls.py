@@ -10,8 +10,8 @@ from .views import (
     HallDetailView,
     SeatDetailView,
     SessionDetailView,
+    AdminLoginView
 )
-
 urlpatterns = [
     path("movies/", MovieListView.as_view(), name="movie-list"),
     path("sessions/", SessionListView.as_view(), name="session-list"),
@@ -42,4 +42,5 @@ urlpatterns = [
         HallDetailView.as_view(),
         name="hall-detail",
     ),
+    path("admin/login/", AdminLoginView.as_view()),
 ]

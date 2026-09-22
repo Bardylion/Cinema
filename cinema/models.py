@@ -5,6 +5,17 @@ class Hall(models.Model):
     name = models.CharField(max_length=100) # название зала
     rows = models.PositiveIntegerField() # количество рядов
     seats_per_row = models.PositiveIntegerField() # мест в каждом ряду
+    standard_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+    )
+
+    vip_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+    )
 
     def __str__(self):
         return self.name
@@ -12,10 +23,12 @@ class Hall(models.Model):
 class Seat(models.Model):
     NORMAL = "NORMAL"
     VIP = "VIP"
+    DISABLED = "DISABLED"
 
     SEAT_TYPES = [
         (NORMAL, "Обычное"),
         (VIP, "VIP"),
+        (DISABLED, "Недоступное"),
     ]
 
     hall = models.ForeignKey(

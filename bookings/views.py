@@ -12,6 +12,7 @@ from .serializers import (
     BookingDetailSerializer,
     TicketSerializer,
     TicketDetailSerializer,
+    generate_ticket_qr,
 )
 from django.shortcuts import get_object_or_404
 
@@ -69,18 +70,8 @@ class TicketCreateView(CreateAPIView):
             price=price,
         )
 
-        qr = qrcode.make(
-            f"Ticket: {ticket.ticket_code}"
-        )
+        generate_ticket_qr(ticket)
 
-        buffer = io.BytesIO()
-        qr.save(buffer, format="PNG")
-
-        ticket.qr_code.save(
-            f"{ticket.ticket_code}.png",
-            ContentFile(buffer.getvalue()),
-            save=True,
-        )
 
 class TicketDetailView(RetrieveAPIView):
     queryset = Ticket.objects.all()

@@ -226,3 +226,27 @@ class BookingAPITestCase(TestCase):
                 session=self.session,
             ).exists()
         )
+
+    def test_cannot_create_overlapping_session(self):
+        from django.contrib.auth.models import User
+
+        admin = User.objects.create_user(
+            username="admin",
+            password="admin123",
+            is_staff=True,
+        )
+
+        self.client.force_authenticate(user=admin)
+
+        response = self.client.post(
+            "/api/sessions/",
+            {
+                "movie": self.movie.id,
+                "hall": self.hall.id,
+                "start_time": "2026-12-01T20:00:00Z",
+                "base_price": 500,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)

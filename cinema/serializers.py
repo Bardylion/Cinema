@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Movie, Session, Seat, Hall
-
+from datetime import timedelta
 
 class MovieSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,7 +22,34 @@ class SessionSerializer(serializers.ModelSerializer):
         source="hall.name",
         read_only=True,
     )
+    def validate(self, attrs):
+        movie = attrs["movie"]
+        hall = attrs["hall"]
+        start_time = attrs["start_time"]
 
+        end_time = start_time + timedelta(
+            minutes=movie.duration,
+        )
+
+        overlapping_sessions = Session.objects.filter(
+            hall=hall,
+            start_time__lt=end_time,
+        ).exclude(
+            id=self.instance.id if self.instance else None,
+        )
+
+        for session in overlapping_sessions:
+            session_end = session.start_time + timedelta(
+                minutes=session.movie.duration,
+            )
+
+            if start_time < session_end:
+                raise serializers.ValidationError(
+                    "Сеанс пересекается с другим сеансом в этом зале."
+                )
+
+        return attrs
+    
     class Meta:
         model = Session
         fields = [
@@ -47,7 +74,7 @@ class SeatSerializer(serializers.ModelSerializer):
         return obj.tickets.filter(
             session=session,
         ).exists()
-
+    
     class Meta:
         model = Seat
         fields = [
@@ -67,6 +94,8 @@ class HallSerializer(serializers.ModelSerializer):
             "name",
             "rows",
             "seats_per_row",
+            "standard_price",
+            "vip_price",
         ]
 
     def create(self, validated_data):

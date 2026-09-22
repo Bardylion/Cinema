@@ -1,10 +1,33 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import MovieCard from './components/MovieCard'
 import HallPage from './pages/HallPage'
 import TicketPage from './pages/TicketPage'
-import { useState } from 'react'
+import AdminPage from './pages/AdminPage'
+import AdminLoginPage from './pages/AdminLoginPage'
+
+function ProtectedAdminRoute({ children }) {
+  const token = localStorage.getItem('adminToken')
+
+  console.log('ProtectedAdminRoute:', token)
+
+  if (!token) {
+    return <Navigate to="/admin/login" replace />
+  }
+
+  return children
+}
 
 function App() {
+  const [movies, setMovies] = useState([])
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/movies/')
+      .then((response) => response.json())
+      .then((data) => {
+        setMovies(data)
+      })
+  }, [])
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState(new Date())
   const getWeekDates = () => {
@@ -92,7 +115,10 @@ function App() {
             </nav>
 
             <main>
-              <MovieCard selectedDate={selectedDate} />
+              <MovieCard
+                movies={movies}
+                selectedDate={selectedDate}
+              />
             </main>
           </>
         }
@@ -100,6 +126,15 @@ function App() {
 
       <Route path="/hall/:sessionId" element={<HallPage />} />
       <Route path="/ticket/:bookingCode" element={<TicketPage />} />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedAdminRoute>
+            <AdminPage />
+          </ProtectedAdminRoute>
+        }
+      />
+      <Route path="/admin/login" element={<AdminLoginPage />}/>
     </Routes>
   )
 }

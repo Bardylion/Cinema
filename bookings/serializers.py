@@ -98,11 +98,20 @@ class BookingCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         session = attrs["session"]
         seats = attrs["seats"]
+        if session.start_time <= timezone.now():
+            raise serializers.ValidationError(
+                "Нельзя забронировать прошедший сеанс."
+            )
 
         for seat in seats:
             if seat.hall_id != session.hall_id:
                 raise serializers.ValidationError(
                     f"Место {seat.id} не принадлежит залу выбранного сеанса."
+                )
+
+            if seat.seat_type == Seat.DISABLED:
+                raise serializers.ValidationError(
+                    f"Место {seat.id} недоступно для бронирования."
                 )
 
             if Ticket.objects.filter(

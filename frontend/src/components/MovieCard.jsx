@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import SessionList from './SessionList'
 
-function MovieCard({ selectedDate }) {
+function MovieCard({ movies, selectedDate }) {
   const [sessions, setSessions] = useState([])
 
   useEffect(() => {
@@ -12,44 +12,55 @@ function MovieCard({ selectedDate }) {
       })
   }, [])
 
-  const filteredSessions = sessions.filter((session) => {
-    const sessionDate = new Date(session.start_time)
-
-    return sessionDate.toDateString() === selectedDate.toDateString()
-  })
-
-  if (filteredSessions.length === 0) {
-    return null
-  }
-
   return (
-    <section className="movie">
-      <div className="movie__info">
-        <div className="movie__poster">
-          <img
-            className="movie__poster-image"
-            src="/client/i/poster1.jpg"
-            alt="Постер фильма"
-          />
-        </div>
+    <>
+      {movies.map((movie) => {
+        const filteredSessions = sessions.filter((session) => {
+          const sessionDate = new Date(session.start_time)
 
-        <div className="movie__description">
-          <h2 className="movie__title">Интерстеллар</h2>
+          return (
+            session.movie === movie.id &&
+            sessionDate.toDateString() === selectedDate.toDateString()
+          )
+        })
 
-          <p className="movie__synopsis">
-            Фильм о путешествии исследователей через червоточину
-            в космосе в поисках нового дома для человечества.
-          </p>
+        if (filteredSessions.length === 0) {
+          return null
+        }
 
-          <p className="movie__data">
-            <span className="movie__data-duration">169 минут</span>
-            <span className="movie__data-origin">США</span>
-          </p>
-        </div>
-      </div>
+        return (
+          <section className="movie" key={movie.id}>
+            <div className="movie__info">
+              <div className="movie__poster">
+                <img
+                  className="movie__poster-image"
+                  src="/client/i/poster1.jpg"
+                  alt="Постер фильма"
+                />
+              </div>
 
-      <SessionList sessions={filteredSessions} />
-    </section>
+              <div className="movie__description">
+                <h2 className="movie__title">
+                  {movie.title}
+                </h2>
+
+                <p className="movie__synopsis">
+                  {movie.description}
+                </p>
+
+                <p className="movie__data">
+                  <span className="movie__data-duration">
+                    {movie.duration} минут
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <SessionList sessions={filteredSessions} />
+          </section>
+        )
+      })}
+    </>
   )
 }
 
