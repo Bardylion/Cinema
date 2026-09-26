@@ -41,10 +41,17 @@ class SessionListView(ListCreateAPIView):
     permission_classes = [IsAdminOrReadOnly]
 
 class SeatListView(ListAPIView):
-    queryset = Seat.objects.all()
     serializer_class = SeatSerializer
     permission_classes = [IsAdminUser]
 
+    def get_queryset(self):
+        hall_id = self.request.query_params.get("hall")
+
+        if hall_id:
+            return Seat.objects.filter(hall_id=hall_id).order_by("row", "number")
+
+        return Seat.objects.all().order_by("hall_id", "row", "number")
+    
 class SessionSeatListView(ListAPIView):
     serializer_class = SeatSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -77,7 +84,7 @@ class SessionSeatListView(ListAPIView):
         return context
 
 class HallListView(ListCreateAPIView):
-    queryset = Hall.objects.all()
+    queryset = Hall.objects.all().order_by("name")
     serializer_class = HallSerializer
     permission_classes = [IsAdminOrReadOnly]
 

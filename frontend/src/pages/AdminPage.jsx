@@ -1,23 +1,77 @@
 import { useEffect, useState } from 'react'
 
 function AdminPage() {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [movies, setMovies] = useState([])
+  const [sessions, setSessions] = useState([])
+  const [isAddingSession, setIsAddingSession] = useState(false)
+  const [sessionMovieId, setSessionMovieId] = useState('')
+  const [sessionHallId, setSessionHallId] = useState('')
+  const [sessionTime, setSessionTime] = useState('')
+  const [sessionPrice, setSessionPrice] = useState('')
   const token = localStorage.getItem('adminToken')
   const [halls, setHalls] = useState([])
   const [isCreatingHall, setIsCreatingHall] = useState(false)
   const [hallName, setHallName] = useState('')
   const [hallRows, setHallRows] = useState('')
   const [hallSeats, setHallSeats] = useState('')
+  const [selectedHallId, setSelectedHallId] = useState('')
+  const [selectedPriceHallId, setSelectedPriceHallId] = useState('')
+  const [standardPrice, setStandardPrice] = useState('')
+  const [vipPrice, setVipPrice] = useState('')
+  const [seats, setSeats] = useState([])
+  const [openSteps, setOpenSteps] = useState([0, 1, 2, 3, 4])
+  const [changedSeats, setChangedSeats] = useState({})
 
-  const [openSteps, setOpenSteps] = useState([
-    0,
-    1,
-    2,
-    3,
-    4,
-  ])
+  /**
+   * Переключает тип кресла по кругу: NORMAL -> VIP -> DISABLED -> NORMAL.
+   */
+  const toggleSeatType = (seatId) => {
+    setSeats((currentSeats) =>
+      currentSeats.map((seat) => {
+        if (seat.id !== seatId) {
+          return seat
+        }
 
+        let nextType = 'NORMAL'
+
+        if (seat.seat_type === 'NORMAL') {
+          nextType = 'VIP'
+        } else if (seat.seat_type === 'VIP') {
+          nextType = 'DISABLED'
+        }
+
+        return {
+          ...seat,
+          seat_type: nextType,
+        }
+      })
+    )
+
+    setChangedSeats((current) => {
+      const seat = seats.find((item) => item.id === seatId)
+
+      if (!seat) {
+        return current
+      }
+
+      let nextType = 'NORMAL'
+
+      if (seat.seat_type === 'NORMAL') {
+        nextType = 'VIP'
+      } else if (seat.seat_type === 'VIP') {
+        nextType = 'DISABLED'
+      }
+
+      return {
+        ...current,
+        [seatId]: nextType,
+      }
+    })
+  }
+
+  // Загружаем список залов.
   useEffect(() => {
-
     fetch('http://127.0.0.1:8000/api/halls/', {
       headers: {
         Authorization: `Token ${token}`,
@@ -29,6 +83,81 @@ function AdminPage() {
       })
   }, [])
 
+  // Загружаем список сеансов.
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/sessions/', {
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setSessions(data)
+      })
+  }, [])
+
+  // После загрузки залов выбираем первый зал по умолчанию
+  useEffect(() => {
+    if (halls.length === 0) {
+      return
+    }
+
+    setSelectedHallId(halls[0].id)
+    setSelectedPriceHallId(halls[0].id)
+  }, [halls])
+
+  // При смене выбранного зала (для конфигурации кресел) загружаем его
+  // кресла. Если зал не выбран — очищаем список кресел.
+  useEffect(() => {
+    if (!selectedHallId) {
+      setSeats([])
+      return
+    }
+
+    fetch(`http://127.0.0.1:8000/api/seats/?hall=${selectedHallId}`, {
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setSeats(data)
+      })
+  }, [selectedHallId])
+
+  // При смене выбранного зала (для конфигурации цен) заполняем поля
+  // стандартной и VIP цены текущими значениями этого зала.
+  useEffect(() => {
+    if (!selectedPriceHallId) {
+      setStandardPrice('')
+      setVipPrice('')
+      return
+    }
+
+    const selectedHall = halls.find(
+      (hall) => hall.id === Number(selectedPriceHallId)
+    )
+
+    if (selectedHall) {
+      setStandardPrice(selectedHall.standard_price)
+      setVipPrice(selectedHall.vip_price)
+    }
+  }, [selectedPriceHallId, halls])
+
+  // Загружаем список фильмов.
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/movies/', {
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setMovies(data)
+      })
+  }, [])
+
+  // Подключаем стили админ-панели в <head>
   useEffect(() => {
     const normalize = document.createElement('link')
     normalize.rel = 'stylesheet'
@@ -47,6 +176,37 @@ function AdminPage() {
     }
   }, [])
 
+  const saveSeatChanges = async () => {
+    try {
+      const seatIds = Object.keys(changedSeats)
+
+      for (const seatId of seatIds) {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/seats/${seatId}/`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Token ${token}`,
+            },
+            body: JSON.stringify({
+              seat_type: changedSeats[seatId],
+            }),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error('Не удалось сохранить изменения.')
+        }
+      }
+
+      setChangedSeats({})
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // аккордеон
   const toggleStep = (index) => {
     setOpenSteps((current) => {
       if (current.includes(index)) {
@@ -57,7 +217,94 @@ function AdminPage() {
     })
   }
 
-  const rows = Array.from({ length: 10 })
+  /**
+   * Сохраняет стандартную и VIP цены для выбранного зала PATCH-запросом,
+   * а затем обновляет запись этого зала в локальном состоянии данными,
+   * полученными от сервера.
+   */
+  const saveHallPrices = async () => {
+    if (!selectedPriceHallId) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/halls/${selectedPriceHallId}/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Token ${token}`,
+          },
+          body: JSON.stringify({
+            standard_price: Number(standardPrice),
+            vip_price: Number(vipPrice),
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Не удалось сохранить цены.')
+      }
+
+      const updatedHall = await response.json()
+
+      setHalls((currentHalls) =>
+        currentHalls.map((hall) =>
+          hall.id === updatedHall.id ? updatedHall : hall
+        )
+      )
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // Создаёт новый сеанс (показ фильма) на основе полей формы «добавить сеанс»
+  const saveSession = async () => {
+    if (!sessionMovieId || !sessionHallId || !selectedDate || !sessionTime) {
+      return
+    }
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/sessions/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Token ${token}`,
+        },
+        body: JSON.stringify({
+          movie: Number(sessionMovieId),
+          hall: Number(sessionHallId),
+          start_time: `${selectedDate}T${sessionTime}:00+03:00`,
+          base_price: Number(sessionPrice || 0),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error(data)
+        return
+      }
+
+      setSessions((currentSessions) => [...currentSessions, data])
+
+      setIsAddingSession(false)
+      setSessionMovieId('')
+      setSessionHallId('')
+      setSessionTime('')
+      setSessionPrice('')
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // Сеансы на выбранный день в календаре.
+  const sessionsForSelectedDate = sessions.filter((session) => {
+    const sessionDate = new Date(session.start_time).toLocaleDateString('en-CA')
+
+    return sessionDate === selectedDate
+  })
 
   return (
     <>
@@ -72,6 +319,7 @@ function AdminPage() {
       </header>
 
       <main className="conf-steps">
+        {/* Шаг 0: список залов + форма создания зала */}
         <section className="conf-step">
           <header
             className={`conf-step__header ${
@@ -224,6 +472,7 @@ function AdminPage() {
           </div>
         </section>
 
+        {/* Шаг 1: конфигурация схемы кресел для выбранного зала */}
         <section className="conf-step">
           <header
             className={`conf-step__header ${
@@ -244,14 +493,15 @@ function AdminPage() {
             </p>
 
             <ul className="conf-step__selectors-box">
-              {halls.map((hall, index) => (
+              {halls.map((hall) => (
                 <li key={hall.id}>
                   <input
                     type="radio"
                     className="conf-step__radio"
                     name="chairs-hall"
                     value={hall.id}
-                    defaultChecked={index === 0}
+                    checked={String(selectedHallId) === String(hall.id)}
+                    onChange={() => setSelectedHallId(hall.id)}
                   />
 
                   <span className="conf-step__selector">
@@ -314,19 +564,34 @@ function AdminPage() {
                   ЭКРАН
                 </div>
 
-                {rows.map((_, rowIndex) => (
-                  <div
-                    className="conf-step__row"
-                    key={rowIndex}
-                  >
-                    {Array.from({ length: 8 }).map((_, seatIndex) => (
-                      <span
-                        className="conf-step__chair conf-step__chair_standart"
-                        key={seatIndex}
-                      ></span>
-                    ))}
-                  </div>
-                ))}
+                {selectedHallId &&
+                  Array.from({
+                    length:
+                      halls.find((hall) => hall.id === Number(selectedHallId))
+                        ?.rows || 0,
+                  }).map((_, rowIndex) => {
+                    const rowNumber = rowIndex + 1
+
+                    return (
+                      <div className="conf-step__row" key={rowNumber}>
+                        {seats
+                          .filter((seat) => seat.row === rowNumber)
+                          .map((seat) => (
+                            <span
+                              className={`conf-step__chair ${
+                                seat.seat_type === 'VIP'
+                                  ? 'conf-step__chair_vip'
+                                  : seat.seat_type === 'DISABLED'
+                                    ? 'conf-step__chair_disabled'
+                                    : 'conf-step__chair_standart'
+                              }`}
+                              key={seat.id}
+                              onClick={() => toggleSeatType(seat.id)}
+                            ></span>
+                          ))}
+                      </div>
+                    )
+                  })}
               </div>
             </div>
 
@@ -334,16 +599,18 @@ function AdminPage() {
               <button className="conf-step__button conf-step__button-regular">
                 Отмена
               </button>
-
-              <input
-                type="submit"
-                value="Сохранить"
+              <button
+                type="button"
                 className="conf-step__button conf-step__button-accent"
-              />
+                onClick={saveSeatChanges}
+              >
+                Сохранить
+              </button>
             </fieldset>
           </div>
         </section>
 
+        {/* Шаг 2: конфигурация цен (стандарт/VIP) для выбранного зала */}
         <section className="conf-step">
           <header
             className={`conf-step__header ${
@@ -364,14 +631,15 @@ function AdminPage() {
             </p>
 
             <ul className="conf-step__selectors-box">
-              {halls.map((hall, index) => (
+              {halls.map((hall) => (
                 <li key={hall.id}>
                   <input
                     type="radio"
                     className="conf-step__radio"
                     name="prices-hall"
                     value={hall.id}
-                    defaultChecked={index === 0}
+                    checked={String(selectedPriceHallId) === String(hall.id)}
+                    onChange={() => setSelectedPriceHallId(hall.id)}
                   />
 
                   <span className="conf-step__selector">
@@ -392,6 +660,8 @@ function AdminPage() {
                   type="text"
                   className="conf-step__input"
                   placeholder="0"
+                  value={standardPrice}
+                  onChange={(event) => setStandardPrice(event.target.value)}
                 />
               </label>
 
@@ -407,8 +677,8 @@ function AdminPage() {
                   type="text"
                   className="conf-step__input"
                   placeholder="0"
-                  value="350"
-                  readOnly
+                  value={vipPrice}
+                  onChange={(event) => setVipPrice(event.target.value)}
                 />
               </label>
 
@@ -418,19 +688,35 @@ function AdminPage() {
             </div>
 
             <fieldset className="conf-step__buttons text-center">
-              <button className="conf-step__button conf-step__button-regular">
+              <button
+                type="button"
+                className="conf-step__button conf-step__button-regular"
+                onClick={() => {
+                  const selectedHall = halls.find(
+                    (hall) => hall.id === Number(selectedPriceHallId)
+                  )
+
+                  if (selectedHall) {
+                    setStandardPrice(selectedHall.standard_price)
+                    setVipPrice(selectedHall.vip_price)
+                  }
+                }}
+              >
                 Отмена
               </button>
 
-              <input
-                type="submit"
-                value="Сохранить"
+              <button
+                type="button"
                 className="conf-step__button conf-step__button-accent"
-              />
+                onClick={saveHallPrices}
+              >
+                Сохранить
+              </button>
             </fieldset>
           </div>
         </section>
 
+        {/* Шаг 3: сетка сеансов + форма добавления сеанса */}
         <section className="conf-step">
           <header
             className={`conf-step__header ${
@@ -447,88 +733,190 @@ function AdminPage() {
 
           <div className="conf-step__wrapper">
             <p className="conf-step__paragraph">
-              <button className="conf-step__button conf-step__button-accent">
+              Выберите день:
+              <input
+                type="date"
+                className="conf-step__input"
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
+              />
+            </p>
+
+            <p className="conf-step__paragraph">
+              <button
+                type="button"
+                className="conf-step__button conf-step__button-accent"
+                onClick={() => setIsAddingSession(true)}
+              >
                 Добавить фильм
               </button>
             </p>
 
-            <div className="conf-step__movies">
-              <div className="conf-step__movie">
-                <img
-                  className="conf-step__movie-poster"
-                  src="/admin/i/poster.png"
-                  alt="Постер фильма"
-                />
+            {isAddingSession && (
+              <div className="conf-step__legend">
+                <label className="conf-step__label">
+                  Фильм
+                  <select
+                    className="conf-step__input"
+                    value={sessionMovieId}
+                    onChange={(event) => setSessionMovieId(event.target.value)}
+                  >
+                    <option value="">Выберите фильм</option>
 
-                <p className="conf-step__movie-title">
-                  Интерстеллар
-                </p>
+                    {movies.map((movie) => (
+                      <option key={movie.id} value={movie.id}>
+                        {movie.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                <p className="conf-step__movie-duration">
-                  169 минут
-                </p>
+                <label className="conf-step__label">
+                  Зал
+                  <select
+                    className="conf-step__input"
+                    value={sessionHallId}
+                    onChange={(event) => setSessionHallId(event.target.value)}
+                  >
+                    <option value="">Выберите зал</option>
+
+                    {halls.map((hall) => (
+                      <option key={hall.id} value={hall.id}>
+                        {hall.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="conf-step__label">
+                  Дата
+                  <input
+                    type="date"
+                    className="conf-step__input"
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                  />
+                </label>
+
+                <label className="conf-step__label">
+                  Время
+                  <input
+                    type="time"
+                    className="conf-step__input"
+                    value={sessionTime}
+                    onChange={(event) => setSessionTime(event.target.value)}
+                  />
+                </label>
+
+                <fieldset className="conf-step__buttons text-center">
+                  <button
+                    type="button"
+                    className="conf-step__button conf-step__button-regular"
+                    onClick={() => {
+                      setIsAddingSession(false)
+                      setSessionMovieId('')
+                      setSessionHallId('')
+                      setSessionTime('')
+                    }}
+                  >
+                    Отмена
+                  </button>
+
+                  <button
+                    type="button"
+                    className="conf-step__button conf-step__button-accent"
+                    onClick={saveSession}
+                  >
+                    Сохранить
+                  </button>
+                </fieldset>
               </div>
+            )}
 
-              <div className="conf-step__movie">
-                <img
-                  className="conf-step__movie-poster"
-                  src="/admin/i/poster.png"
-                  alt="Постер фильма"
-                />
+            <div
+              className="conf-step__movies"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+              }}
+            >
+              {movies.map((movie) => (
+                <div className="conf-step__movie" key={movie.id}>
+                  <img
+                    className="conf-step__movie-poster"
+                    src="/admin/i/poster.png"
+                    alt={movie.title}
+                  />
 
-                <p className="conf-step__movie-title">
-                  Дюна
-                </p>
-
-                <p className="conf-step__movie-duration">
-                  155 минут
-                </p>
-              </div>
-            </div>
-
-            <div className="conf-step__seances">
-              {halls.map((hall) => (
-                <div
-                  className="conf-step__seances-hall"
-                  key={hall.id}
-                >
-                  <h3 className="conf-step__seances-title">
-                    {hall.name}
+                  <h3 className="conf-step__movie-title">
+                    {movie.title}
                   </h3>
 
-                  <div className="conf-step__seances-timeline">
-                    <div
-                      className="conf-step__seances-movie"
-                      style={{
-                        width: '84.5px',
-                        backgroundColor: 'rgb(133, 255, 0)',
-                        left: '100px',
-                      }}
-                    >
-                      <p className="conf-step__seances-movie-title">
-                        Интерстеллар
-                      </p>
-
-                      <p className="conf-step__seances-movie-start">
-                        19:00
-                      </p>
-                    </div>
-                  </div>
+                  <p className="conf-step__movie-duration">
+                    {movie.duration} минут
+                  </p>
                 </div>
               ))}
             </div>
 
-            <fieldset className="conf-step__buttons text-center">
-              <button className="conf-step__button conf-step__button-regular">
-                Отмена
-              </button>
+            <div className="conf-step__seances">
+              {halls.map((hall) => {
+                const hallSessions = sessionsForSelectedDate.filter(
+                  (session) => session.hall === hall.id
+                )
 
-              <input
-                type="submit"
-                value="Сохранить"
-                className="conf-step__button conf-step__button-accent"
-              />
-            </fieldset>
+                return (
+                  <div className="conf-step__seances-hall" key={hall.id}>
+                    <h3 className="conf-step__seances-title">
+                      {hall.name}
+                    </h3>
+
+                    <div className="conf-step__seances-timeline">
+                      {hallSessions.map((session) => {
+                        const startDate = new Date(session.start_time)
+
+                        const hours = startDate.getHours()
+                        const minutes = startDate.getMinutes()
+
+                        const startMinutes = hours * 60 + minutes
+
+                        const width = session.movie_duration / 2
+
+                        const left = startMinutes / 2
+
+                        const color =
+                          session.movie % 2 === 0
+                            ? 'rgb(133, 255, 137)'
+                            : 'rgb(202, 255, 133)'
+
+                        return (
+                          <div
+                            className="conf-step__seances-movie"
+                            key={session.id}
+                            style={{
+                              width: `${width}px`,
+                              left: `${left}px`,
+                              backgroundColor: color,
+                            }}
+                          >
+                            <p className="conf-step__seances-movie-title">
+                              {session.movie_title}
+                            </p>
+
+                            <p className="conf-step__seances-movie-start">
+                              {startDate.toLocaleTimeString('ru-RU', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </section>
 
