@@ -2,9 +2,9 @@ from django.db import models
 
 
 class Hall(models.Model):
-    name = models.CharField(max_length=100) # название зала
-    rows = models.PositiveIntegerField() # количество рядов
-    seats_per_row = models.PositiveIntegerField() # мест в каждом ряду
+    name = models.CharField(max_length=100)  # название зала
+    rows = models.PositiveIntegerField()  # количество рядов
+    seats_per_row = models.PositiveIntegerField()  # мест в каждом ряду
     standard_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -19,6 +19,7 @@ class Hall(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Seat(models.Model):
     NORMAL = "NORMAL"
@@ -55,6 +56,7 @@ class Seat(models.Model):
             ),
         ]
 
+
 class Movie(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
@@ -66,6 +68,7 @@ class Movie(models.Model):
 
     def __str__(self):
         return self.title
+
 
 class Session(models.Model):
     movie = models.ForeignKey(

@@ -1,6 +1,9 @@
-from rest_framework import serializers
-from .models import Movie, Session, Seat, Hall
 from datetime import timedelta
+
+from rest_framework import serializers
+
+from .models import Hall, Movie, Seat, Session
+
 
 class MovieSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,6 +16,7 @@ class MovieSerializer(serializers.ModelSerializer):
             "age_rating",
         ]
 
+
 class SessionSerializer(serializers.ModelSerializer):
     movie_title = serializers.CharField(
         source="movie.title",
@@ -22,6 +26,7 @@ class SessionSerializer(serializers.ModelSerializer):
         source="hall.name",
         read_only=True,
     )
+
     def validate(self, attrs):
         movie = attrs["movie"]
         hall = attrs["hall"]
@@ -49,7 +54,7 @@ class SessionSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
-    
+
     class Meta:
         model = Session
         fields = [
@@ -61,6 +66,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "start_time",
             "base_price",
         ]
+
 
 class SeatSerializer(serializers.ModelSerializer):
     booked = serializers.SerializerMethodField()
@@ -74,7 +80,7 @@ class SeatSerializer(serializers.ModelSerializer):
         return obj.tickets.filter(
             session=session,
         ).exists()
-    
+
     class Meta:
         model = Seat
         fields = [
@@ -85,7 +91,8 @@ class SeatSerializer(serializers.ModelSerializer):
             "seat_type",
             "booked",
         ]
-        
+
+
 class HallSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hall

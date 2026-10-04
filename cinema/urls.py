@@ -1,24 +1,25 @@
 from django.urls import path
 
 from .views import (
-    MovieListView,
-    MovieDetailView,
-    SessionListView,
-    SeatListView,
-    SessionSeatListView,
-    HallListView,
+    AdminLoginView,
     HallDetailView,
+    HallListView,
+    MovieDetailView,
+    MovieListView,
     SeatDetailView,
+    SeatListView,
     SessionDetailView,
-    AdminLoginView
+    SessionListView,
+    SessionSeatListView,
 )
+
 urlpatterns = [
     path("movies/", MovieListView.as_view(), name="movie-list"),
     path("sessions/", SessionListView.as_view(), name="session-list"),
     path(
-    "sessions/<int:pk>/",
-    SessionDetailView.as_view(),
-    name="session-detail",
+        "sessions/<int:pk>/",
+        SessionDetailView.as_view(),
+        name="session-detail",
     ),
     path("seats/", SeatListView.as_view(), name="seat-list"),
     path(

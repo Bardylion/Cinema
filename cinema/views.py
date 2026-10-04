@@ -1,22 +1,23 @@
+from django.contrib.auth import authenticate
+from django.shortcuts import get_object_or_404
+from rest_framework.authtoken.models import Token
 from rest_framework.generics import (
     ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from django.contrib.auth import authenticate
-from rest_framework.authtoken.models import Token
-from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from django.shortcuts import get_object_or_404
-from .models import Movie, Session, Seat, Hall
+from rest_framework.views import APIView
+
+from .models import Hall, Movie, Seat, Session
 from .serializers import (
-    MovieSerializer,
-    SessionSerializer,
-    SeatSerializer,
     HallSerializer,
+    MovieSerializer,
+    SeatSerializer,
+    SessionSerializer,
 )
-from rest_framework.permissions import BasePermission, IsAdminUser
+
 
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
@@ -25,20 +26,24 @@ class IsAdminOrReadOnly(BasePermission):
 
         return request.user.is_authenticated and request.user.is_staff
 
+
 class MovieListView(ListCreateAPIView):
     queryset = Movie.objects.all()
     serializer_class = MovieSerializer
     permission_classes = [IsAdminOrReadOnly]
+
 
 class MovieDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Movie.objects.all()
     serializer_class = MovieSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+
 class SessionListView(ListCreateAPIView):
     queryset = Session.objects.all()
     serializer_class = SessionSerializer
     permission_classes = [IsAdminOrReadOnly]
+
 
 class SeatListView(ListAPIView):
     serializer_class = SeatSerializer
@@ -51,7 +56,8 @@ class SeatListView(ListAPIView):
             return Seat.objects.filter(hall_id=hall_id).order_by("row", "number")
 
         return Seat.objects.all().order_by("hall_id", "row", "number")
-    
+
+
 class SessionSeatListView(ListAPIView):
     serializer_class = SeatSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -70,7 +76,7 @@ class SessionSeatListView(ListAPIView):
             "row",
             "number",
         )
-    
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
 
@@ -83,20 +89,24 @@ class SessionSeatListView(ListAPIView):
 
         return context
 
+
 class HallListView(ListCreateAPIView):
     queryset = Hall.objects.all().order_by("name")
     serializer_class = HallSerializer
     permission_classes = [IsAdminOrReadOnly]
+
 
 class HallDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Hall.objects.all()
     serializer_class = HallSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+
 class SeatDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Seat.objects.all()
     serializer_class = SeatSerializer
     permission_classes = [IsAdminOrReadOnly]
+
 
 class SessionDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Session.objects.all()
@@ -122,7 +132,7 @@ class AdminLoginView(APIView):
                 status=401,
             )
 
-        token, created = Token.objects.get_or_create(user=user)
+        token, _ = Token.objects.get_or_create(user=user)
 
         return Response(
             {

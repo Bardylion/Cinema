@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Hall, Seat, Movie, Session
+from .models import Hall, Movie, Seat, Session
 
 
 @admin.register(Hall)

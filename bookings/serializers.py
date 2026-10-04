@@ -1,18 +1,20 @@
-from rest_framework import serializers
+import io
 import secrets
 from decimal import Decimal
-from .models import Booking, Ticket
-from cinema.models import Session, Seat
-import io
+
 import qrcode
-from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
+from django.utils import timezone
+from rest_framework import serializers
+
+from cinema.models import Seat, Session
+
+from .models import Booking, Ticket
+
 
 def generate_ticket_qr(ticket):
-    qr = qrcode.make(
-        f"Ticket: {ticket.ticket_code}"
-    )
+    qr = qrcode.make(f"Ticket: {ticket.ticket_code}")
 
     buffer = io.BytesIO()
     qr.save(buffer, format="PNG")
@@ -22,6 +24,7 @@ def generate_ticket_qr(ticket):
         ContentFile(buffer.getvalue()),
         save=True,
     )
+
 
 class TicketSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,7 +44,7 @@ class TicketSerializer(serializers.ModelSerializer):
             "ticket_code",
             "qr_code",
         ]
-        
+
     def validate(self, attrs):
         session = attrs["session"]
         seat = attrs["seat"]
@@ -57,7 +60,8 @@ class TicketSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-    
+
+
 class TicketDetailSerializer(serializers.ModelSerializer):
     movie = serializers.CharField(source="session.movie.title")
     hall = serializers.CharField(source="session.hall.name")
@@ -65,9 +69,9 @@ class TicketDetailSerializer(serializers.ModelSerializer):
     seat_number = serializers.IntegerField(source="seat.number")
     seat_type = serializers.CharField(source="seat.get_seat_type_display")
     start_time = serializers.DateTimeField(
-    source="session.start_time",
-    format="%d.%m.%Y %H:%M",
-)
+        source="session.start_time",
+        format="%d.%m.%Y %H:%M",
+    )
 
     class Meta:
         model = Ticket
@@ -84,6 +88,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             "qr_code",
         ]
 
+
 class BookingCreateSerializer(serializers.Serializer):
     customer_name = serializers.CharField(max_length=100)
     customer_email = serializers.EmailField()
@@ -99,9 +104,7 @@ class BookingCreateSerializer(serializers.Serializer):
         session = attrs["session"]
         seats = attrs["seats"]
         if session.start_time <= timezone.now():
-            raise serializers.ValidationError(
-                "Нельзя забронировать прошедший сеанс."
-            )
+            raise serializers.ValidationError("Нельзя забронировать прошедший сеанс.")
 
         for seat in seats:
             if seat.hall_id != session.hall_id:
@@ -158,6 +161,7 @@ class BookingCreateSerializer(serializers.Serializer):
             )
 
         return booking
+
 
 class BookingDetailSerializer(serializers.ModelSerializer):
     tickets = TicketDetailSerializer(many=True, read_only=True)

@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from cinema.models import Hall, Seat, Movie, Session
+from cinema.models import Hall, Movie, Seat, Session
 
 
 class BookingAPITestCase(TestCase):
@@ -57,8 +57,6 @@ class BookingAPITestCase(TestCase):
         self.assertEqual(response.data["customer_name"], "Test User")
         self.assertEqual(len(response.data["tickets"]), 1)
         self.assertEqual(response.data["tickets"][0]["price"], "500.00")
-
-
 
     def test_cannot_book_occupied_seat(self):
         # Сначала бронируем место
@@ -222,9 +220,11 @@ class BookingAPITestCase(TestCase):
 
         # Свободное место должно остаться свободным
         self.assertFalse(
-            self.seats[1].tickets.filter(
+            self.seats[1]
+            .tickets.filter(
                 session=self.session,
-            ).exists()
+            )
+            .exists()
         )
 
     def test_cannot_create_overlapping_session(self):

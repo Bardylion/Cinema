@@ -1,9 +1,9 @@
 from django.urls import path
 
 from .views import (
-    BookingListCreateView,
-    BookingDetailView,
     BookingByCodeView,
+    BookingDetailView,
+    BookingListCreateView,
     TicketCreateView,
     TicketDetailView,
 )
@@ -30,8 +30,8 @@ urlpatterns = [
         name="ticket-detail",
     ),
     path(
-    "bookings/code/<str:booking_code>/",
-    BookingByCodeView.as_view(),
-    name="booking-by-code",
+        "bookings/code/<str:booking_code>/",
+        BookingByCodeView.as_view(),
+        name="booking-by-code",
     ),
 ]

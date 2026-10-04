@@ -1,20 +1,23 @@
 import secrets
-from rest_framework.permissions import BasePermission, IsAdminUser
+
+from django.shortcuts import get_object_or_404
 from rest_framework.generics import (
     CreateAPIView,
     ListCreateAPIView,
     RetrieveAPIView,
 )
+from rest_framework.permissions import BasePermission, IsAdminUser
 from rest_framework.response import Response
+
 from .models import Booking, Ticket
 from .serializers import (
     BookingCreateSerializer,
     BookingDetailSerializer,
-    TicketSerializer,
     TicketDetailSerializer,
+    TicketSerializer,
     generate_ticket_qr,
 )
-from django.shortcuts import get_object_or_404
+
 
 class IsAdminOrCreateOnly(BasePermission):
     def has_permission(self, request, view):
@@ -22,11 +25,13 @@ class IsAdminOrCreateOnly(BasePermission):
             return True
 
         return request.user.is_authenticated and request.user.is_staff
-    
+
+
 class BookingListCreateView(ListCreateAPIView):
     queryset = Booking.objects.all().order_by("-created_at")
     serializer_class = BookingCreateSerializer
     permission_classes = [IsAdminOrCreateOnly]
+
     def get_serializer_class(self):
         if self.request.method == "GET":
             return BookingDetailSerializer
@@ -44,10 +49,12 @@ class BookingListCreateView(ListCreateAPIView):
             status=201,
         )
 
+
 class BookingDetailView(RetrieveAPIView):
     queryset = Booking.objects.all()
     serializer_class = BookingDetailSerializer
     permission_classes = [IsAdminUser]
+
 
 class TicketCreateView(CreateAPIView):
     queryset = Ticket.objects.all()
@@ -77,6 +84,7 @@ class TicketDetailView(RetrieveAPIView):
     queryset = Ticket.objects.all()
     serializer_class = TicketDetailSerializer
     permission_classes = [IsAdminUser]
+
 
 class BookingByCodeView(RetrieveAPIView):
     serializer_class = BookingDetailSerializer

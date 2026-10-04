@@ -3,8 +3,15 @@ import { useEffect, useState } from 'react'
 function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [movies, setMovies] = useState([])
+  const [isMovieFormOpen, setIsMovieFormOpen] = useState(false)
+  const [editingMovieId, setEditingMovieId] = useState(null)
+  const [movieTitle, setMovieTitle] = useState('')
+  const [movieDescription, setMovieDescription] = useState('')
+  const [movieDuration, setMovieDuration] = useState('')
+  const [movieAgeRating, setMovieAgeRating] = useState('')
   const [sessions, setSessions] = useState([])
   const [isAddingSession, setIsAddingSession] = useState(false)
+  const [editingSessionId, setEditingSessionId] = useState(null)
   const [sessionMovieId, setSessionMovieId] = useState('')
   const [sessionHallId, setSessionHallId] = useState('')
   const [sessionTime, setSessionTime] = useState('')
@@ -22,6 +29,7 @@ function AdminPage() {
   const [seats, setSeats] = useState([])
   const [openSteps, setOpenSteps] = useState([0, 1, 2, 3, 4])
   const [changedSeats, setChangedSeats] = useState({})
+  
 
   /**
    * Переключает тип кресла по кругу: NORMAL -> VIP -> DISABLED -> NORMAL.
@@ -175,7 +183,116 @@ function AdminPage() {
       document.head.removeChild(styles)
     }
   }, [])
+  const openMovieEditor = (movie) => {
+    setEditingMovieId(movie.id)
+    setMovieTitle(movie.title)
+    setMovieDescription(movie.description)
+    setMovieDuration(String(movie.duration))
+    setMovieAgeRating(movie.age_rating)
+    setIsMovieFormOpen(true)
+  }
 
+  const resetMovieForm = () => {
+    setIsMovieFormOpen(false)
+    setEditingMovieId(null)
+    setMovieTitle('')
+    setMovieDescription('')
+    setMovieDuration('')
+    setMovieAgeRating('')
+  }
+  const deleteMovie = async () => {
+    if (!editingMovieId) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Удалить фильм? Связанные с ним сеансы тоже будут удалены.'
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/movies/${editingMovieId}/`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Не удалось удалить фильм')
+      }
+
+      setMovies((currentMovies) =>
+        currentMovies.filter((movie) => movie.id !== editingMovieId)
+      )
+
+      setSessions((currentSessions) =>
+        currentSessions.filter((session) => session.movie !== editingMovieId)
+      )
+
+      resetMovieForm()
+    } catch (error) {
+      console.error(error)
+      alert('Не удалось удалить фильм')
+    }
+  }
+  const saveMovie = async () => {
+  if (
+    !movieTitle ||
+    !movieDescription ||
+    !movieDuration ||
+    !movieAgeRating
+  ) {return}
+
+  const movieData = {
+    title: movieTitle,
+    description: movieDescription,
+    duration: Number(movieDuration),
+    age_rating: movieAgeRating,
+  }
+
+  try {
+    const url = editingMovieId
+      ? `http://127.0.0.1:8000/api/movies/${editingMovieId}/`
+      : 'http://127.0.0.1:8000/api/movies/'
+
+    const response = await fetch(url, {
+      method: editingMovieId ? 'PATCH' : 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Token ${token}`,
+      },
+      body: JSON.stringify(movieData),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      console.error(data)
+      return
+    }
+
+    if (editingMovieId) {
+      setMovies((currentMovies) =>
+        currentMovies.map((movie) =>
+          movie.id === data.id ? data : movie
+        )
+      )
+    } else {
+      setMovies((currentMovies) => [...currentMovies, data])
+    }
+
+    resetMovieForm()
+  } catch (error) {
+    console.error(error)
+    }
+  }
   const saveSeatChanges = async () => {
     try {
       const seatIds = Object.keys(changedSeats)
@@ -258,44 +375,120 @@ function AdminPage() {
       console.error(error)
     }
   }
+  const openSessionEditor = (session) => {
+    const startDate = new Date(session.start_time)
 
-  // Создаёт новый сеанс (показ фильма) на основе полей формы «добавить сеанс»
-  const saveSession = async () => {
-    if (!sessionMovieId || !sessionHallId || !selectedDate || !sessionTime) {
+    const year = startDate.getFullYear()
+    const month = String(startDate.getMonth() + 1).padStart(2, '0')
+    const day = String(startDate.getDate()).padStart(2, '0')
+
+    const hours = String(startDate.getHours()).padStart(2, '0')
+    const minutes = String(startDate.getMinutes()).padStart(2, '0')
+
+    setEditingSessionId(session.id)
+    setSessionMovieId(String(session.movie))
+    setSessionHallId(String(session.hall))
+    setSelectedDate(`${year}-${month}-${day}`)
+    setSessionTime(`${hours}:${minutes}`)
+    setSessionPrice(String(session.base_price || ''))
+
+    setIsAddingSession(true)
+  }
+
+  const deleteSession = async () => {
+  if (!editingSessionId) {
+    return
+  }
+
+  const confirmed = window.confirm('Удалить этот сеанс?')
+
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:8000/api/sessions/${editingSessionId}/`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Не удалось удалить сеанс')
+    }
+
+    setSessions((currentSessions) =>
+      currentSessions.filter(
+        (session) => session.id !== editingSessionId
+      )
+    )
+
+    setEditingSessionId(null)
+    setIsAddingSession(false)
+    setSessionMovieId('')
+    setSessionHallId('')
+    setSessionTime('')
+    setSessionPrice('')
+  } catch (error) {
+    console.error(error)
+    alert('Не удалось удалить сеанс')
+    }
+  }
+const saveSession = async () => {
+  if (!sessionMovieId || !sessionHallId || !selectedDate || !sessionTime) {
+    return
+  }
+
+  try {
+    const sessionData = {
+      movie: Number(sessionMovieId),
+      hall: Number(sessionHallId),
+      start_time: `${selectedDate}T${sessionTime}:00+03:00`,
+      base_price: Number(sessionPrice || 0),
+    }
+
+    const url = editingSessionId
+      ? `http://127.0.0.1:8000/api/sessions/${editingSessionId}/`
+      : 'http://127.0.0.1:8000/api/sessions/'
+
+    const response = await fetch(url, {
+      method: editingSessionId ? 'PATCH' : 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Token ${token}`,
+      },
+      body: JSON.stringify(sessionData),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      console.error(data)
       return
     }
 
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/sessions/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Token ${token}`,
-        },
-        body: JSON.stringify({
-          movie: Number(sessionMovieId),
-          hall: Number(sessionHallId),
-          start_time: `${selectedDate}T${sessionTime}:00+03:00`,
-          base_price: Number(sessionPrice || 0),
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        console.error(data)
-        return
-      }
-
+    if (editingSessionId) {
+      setSessions((currentSessions) =>
+        currentSessions.map((session) =>
+          session.id === data.id ? data : session
+        )
+      )
+    } else {
       setSessions((currentSessions) => [...currentSessions, data])
+    }
 
-      setIsAddingSession(false)
-      setSessionMovieId('')
-      setSessionHallId('')
-      setSessionTime('')
-      setSessionPrice('')
-    } catch (error) {
-      console.error(error)
+    setIsAddingSession(false)
+    setEditingSessionId(null)
+    setSessionMovieId('')
+    setSessionHallId('')
+    setSessionTime('')
+    setSessionPrice('')
+  } catch (error) {
+    console.error(error)
     }
   }
 
@@ -746,12 +939,127 @@ function AdminPage() {
               <button
                 type="button"
                 className="conf-step__button conf-step__button-accent"
-                onClick={() => setIsAddingSession(true)}
+                onClick={() => {
+                  resetMovieForm()
+                  setIsMovieFormOpen(true)
+                }}
               >
                 Добавить фильм
               </button>
+
+              {' '}
+
+              <button
+                type="button"
+                className="conf-step__button conf-step__button-accent"
+                onClick={() => {
+                  setEditingSessionId(null)
+                  setSessionMovieId('')
+                  setSessionHallId('')
+                  setSessionTime('')
+                  setSessionPrice('')
+                  setIsAddingSession(true)
+                }}
+              >
+                Добавить сеанс
+              </button>
             </p>
 
+            {isMovieFormOpen && (
+              <div className="movie-form">
+                <div className="movie-form__field">
+                  <label className="movie-form__label">
+                    Название фильма
+                  </label>
+
+                  <input
+                    type="text"
+                    className="movie-form__input"
+                    placeholder="Например, Интерстеллар"
+                    value={movieTitle}
+                    onChange={(event) => setMovieTitle(event.target.value)}
+                  />
+                </div>
+
+                <div className="movie-form__field movie-form__field_full">
+                  <label className="movie-form__label">
+                    Описание
+                  </label>
+
+                  <textarea
+                    className="movie-form__textarea"
+                    placeholder="Краткое описание фильма"
+                    value={movieDescription}
+                    onChange={(event) => setMovieDescription(event.target.value)}
+                  />
+                </div>
+
+                <div className="movie-form__row">
+                  <div className="movie-form__field">
+                    <label className="movie-form__label">
+                      Длительность
+                    </label>
+
+                    <div className="movie-form__input-wrapper">
+                      <input
+                        type="number"
+                        className="movie-form__input"
+                        placeholder="120"
+                        min="1"
+                        value={movieDuration}
+                        onChange={(event) => setMovieDuration(event.target.value)}
+                      />
+
+                      <span className="movie-form__unit">
+                        мин.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="movie-form__field">
+                    <label className="movie-form__label">
+                      Возрастной рейтинг
+                    </label>
+
+                    <input
+                      type="text"
+                      className="movie-form__input"
+                      placeholder="12+"
+                      value={movieAgeRating}
+                      onChange={(event) => setMovieAgeRating(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="movie-form__buttons">
+                  <button
+                    type="button"
+                    className="conf-step__button conf-step__button-regular"
+                    onClick={resetMovieForm}
+                  >
+                    Отмена
+                  </button>
+
+                  <button
+                    type="button"
+                    className="conf-step__button conf-step__button-accent"
+                    onClick={saveMovie}
+                  >
+                    Сохранить
+                  </button>
+                    {editingMovieId && (
+                      <button
+                        type="button"
+                        className="conf-step__button movie-form__delete-button"
+                        onClick={deleteMovie}
+                      >
+                        Удалить фильм
+                      </button>
+                    )}
+                </div>
+              </div>
+            )}
+            
             {isAddingSession && (
               <div className="conf-step__legend">
                 <label className="conf-step__label">
@@ -814,9 +1122,11 @@ function AdminPage() {
                     className="conf-step__button conf-step__button-regular"
                     onClick={() => {
                       setIsAddingSession(false)
+                      setEditingSessionId(null)
                       setSessionMovieId('')
                       setSessionHallId('')
                       setSessionTime('')
+                      setSessionPrice('')
                     }}
                   >
                     Отмена
@@ -829,6 +1139,15 @@ function AdminPage() {
                   >
                     Сохранить
                   </button>
+                    {editingSessionId && (
+                    <button
+                      type="button"
+                      className="conf-step__button movie-form__delete-button"
+                      onClick={deleteSession}
+                    >
+                      Удалить сеанс
+                    </button>
+                  )}
                 </fieldset>
               </div>
             )}
@@ -840,8 +1159,13 @@ function AdminPage() {
                 flexWrap: 'wrap',
               }}
             >
-              {movies.map((movie) => (
-                <div className="conf-step__movie" key={movie.id}>
+            {movies.map((movie) => (
+              <div
+                className="conf-step__movie"
+                key={movie.id}
+                onClick={() => openMovieEditor(movie)}
+                style={{ cursor: 'pointer' }}
+              >
                   <img
                     className="conf-step__movie-poster"
                     src="/admin/i/poster.png"
@@ -893,6 +1217,7 @@ function AdminPage() {
                           <div
                             className="conf-step__seances-movie"
                             key={session.id}
+                            onClick={() => openSessionEditor(session)}
                             style={{
                               width: `${width}px`,
                               left: `${left}px`,
