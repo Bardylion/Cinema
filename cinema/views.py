@@ -6,7 +6,11 @@ from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser
+from rest_framework.permissions import (
+    AllowAny,
+    BasePermission,
+    IsAdminUser,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -40,8 +44,46 @@ class MovieDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class SessionListView(ListCreateAPIView):
-    queryset = Session.objects.all()
     serializer_class = SessionSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Session.objects.all()
+
+        if self.request.user.is_staff:
+            return queryset
+
+        return queryset.filter(hall__is_active=True)
+
+
+class SessionDetailView(RetrieveUpdateDestroyAPIView):
+    serializer_class = SessionSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Session.objects.all()
+
+        if self.request.user.is_staff:
+            return queryset
+
+        return queryset.filter(hall__is_active=True)
+
+
+class HallListView(ListCreateAPIView):
+    queryset = Hall.objects.all().order_by("name")
+    serializer_class = HallSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+
+class HallDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = Hall.objects.all()
+    serializer_class = HallSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+
+class SeatDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = Seat.objects.all()
+    serializer_class = SeatSerializer
     permission_classes = [IsAdminOrReadOnly]
 
 
@@ -90,30 +132,6 @@ class SessionSeatListView(ListAPIView):
         return context
 
 
-class HallListView(ListCreateAPIView):
-    queryset = Hall.objects.all().order_by("name")
-    serializer_class = HallSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
-class HallDetailView(RetrieveUpdateDestroyAPIView):
-    queryset = Hall.objects.all()
-    serializer_class = HallSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
-class SeatDetailView(RetrieveUpdateDestroyAPIView):
-    queryset = Seat.objects.all()
-    serializer_class = SeatSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
-class SessionDetailView(RetrieveUpdateDestroyAPIView):
-    queryset = Session.objects.all()
-    serializer_class = SessionSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
 class AdminLoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -138,5 +156,18 @@ class AdminLoginView(APIView):
             {
                 "token": token.key,
                 "username": user.username,
+            }
+        )
+
+
+class OpenSalesView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        Hall.objects.update(is_active=True)
+
+        return Response(
+            {
+                "detail": "Продажи билетов открыты во всех залах.",
             }
         )

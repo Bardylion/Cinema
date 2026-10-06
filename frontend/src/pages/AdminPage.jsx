@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 
 function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedHallConfigDate, setSelectedHallConfigDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedSessionId, setSelectedSessionId] = useState('')
   const [movies, setMovies] = useState([])
   const [isMovieFormOpen, setIsMovieFormOpen] = useState(false)
   const [editingMovieId, setEditingMovieId] = useState(null)
@@ -29,55 +31,84 @@ function AdminPage() {
   const [seats, setSeats] = useState([])
   const [openSteps, setOpenSteps] = useState([0, 1, 2, 3, 4])
   const [changedSeats, setChangedSeats] = useState({})
+  const [bookings, setBookings] = useState([])
+  const [selectedBookingSessionId, setSelectedBookingSessionId] = useState('')
   
 
   /**
    * Переключает тип кресла по кругу: NORMAL -> VIP -> DISABLED -> NORMAL.
    */
   const toggleSeatType = (seatId) => {
-    setSeats((currentSeats) =>
-      currentSeats.map((seat) => {
-        if (seat.id !== seatId) {
-          return seat
-        }
+    if (selectedSessionId) {
+      return
+    }
 
-        let nextType = 'NORMAL'
+    const seat = hallSeats.find((item) => item.id === seatId)
 
-        if (seat.seat_type === 'NORMAL') {
-          nextType = 'VIP'
-        } else if (seat.seat_type === 'VIP') {
-          nextType = 'DISABLED'
-        }
+    if (!seat) {
+      return
+    }
 
-        return {
-          ...seat,
-          seat_type: nextType,
-        }
-      })
+    let nextType = 'NORMAL'
+
+    if (seat.seat_type === 'NORMAL') {
+      nextType = 'VIP'
+    } else if (seat.seat_type === 'VIP') {
+      nextType = 'DISABLED'
+    }
+
+    setHallSeats((currentSeats) =>
+      currentSeats.map((item) =>
+        item.id === seatId
+          ? { ...item, seat_type: nextType }
+          : item
+      )
     )
 
-    setChangedSeats((current) => {
-      const seat = seats.find((item) => item.id === seatId)
-
-      if (!seat) {
-        return current
-      }
-
-      let nextType = 'NORMAL'
-
-      if (seat.seat_type === 'NORMAL') {
-        nextType = 'VIP'
-      } else if (seat.seat_type === 'VIP') {
-        nextType = 'DISABLED'
-      }
-
-      return {
-        ...current,
-        [seatId]: nextType,
-      }
-    })
+    setChangedSeats((current) => ({
+      ...current,
+      [seatId]: nextType,
+    }))
   }
+  // Загружаем бронь
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setSeats([])
+      return
+    }
 
+    fetch(
+      `http://127.0.0.1:8000/api/sessions/${selectedSessionId}/seats/`,
+      {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      }
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        setSeats(data)
+      })
+  }, [selectedSessionId])
+
+  useEffect(() => {
+    if (!selectedHallId) {
+      setHallSeats([])
+      return
+    }
+
+    fetch(`http://127.0.0.1:8000/api/seats/?hall=${selectedHallId}`, {
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setHallSeats(data)
+      })
+  }, [selectedHallId])
+
+  const displayedSeats = selectedSessionId ? seats : hallSeats
   // Загружаем список залов.
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/halls/', {
@@ -114,25 +145,6 @@ function AdminPage() {
     setSelectedPriceHallId(halls[0].id)
   }, [halls])
 
-  // При смене выбранного зала (для конфигурации кресел) загружаем его
-  // кресла. Если зал не выбран — очищаем список кресел.
-  useEffect(() => {
-    if (!selectedHallId) {
-      setSeats([])
-      return
-    }
-
-    fetch(`http://127.0.0.1:8000/api/seats/?hall=${selectedHallId}`, {
-      headers: {
-        Authorization: `Token ${token}`,
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        setSeats(data)
-      })
-  }, [selectedHallId])
-
   // При смене выбранного зала (для конфигурации цен) заполняем поля
   // стандартной и VIP цены текущими значениями этого зала.
   useEffect(() => {
@@ -164,6 +176,18 @@ function AdminPage() {
         setMovies(data)
       })
   }, [])
+
+// Загружаем список броней.
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/bookings/', {
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setBookings(data)
+      })}, [])
 
   // Подключаем стили админ-панели в <head>
   useEffect(() => {
@@ -438,67 +462,125 @@ function AdminPage() {
     alert('Не удалось удалить сеанс')
     }
   }
-const saveSession = async () => {
-  if (!sessionMovieId || !sessionHallId || !selectedDate || !sessionTime) {
-    return
-  }
-
-  try {
-    const sessionData = {
-      movie: Number(sessionMovieId),
-      hall: Number(sessionHallId),
-      start_time: `${selectedDate}T${sessionTime}:00+03:00`,
-      base_price: Number(sessionPrice || 0),
-    }
-
-    const url = editingSessionId
-      ? `http://127.0.0.1:8000/api/sessions/${editingSessionId}/`
-      : 'http://127.0.0.1:8000/api/sessions/'
-
-    const response = await fetch(url, {
-      method: editingSessionId ? 'PATCH' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Token ${token}`,
-      },
-      body: JSON.stringify(sessionData),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      console.error(data)
+  const saveSession = async () => {
+    if (!sessionMovieId || !sessionHallId || !selectedDate || !sessionTime) {
       return
     }
 
-    if (editingSessionId) {
-      setSessions((currentSessions) =>
-        currentSessions.map((session) =>
-          session.id === data.id ? data : session
+    try {
+      const sessionData = {
+        movie: Number(sessionMovieId),
+        hall: Number(sessionHallId),
+        start_time: `${selectedDate}T${sessionTime}:00+03:00`,
+        base_price: Number(sessionPrice || 0),
+      }
+
+      const url = editingSessionId
+        ? `http://127.0.0.1:8000/api/sessions/${editingSessionId}/`
+        : 'http://127.0.0.1:8000/api/sessions/'
+
+      const response = await fetch(url, {
+        method: editingSessionId ? 'PATCH' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Token ${token}`,
+        },
+        body: JSON.stringify(sessionData),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error(data)
+        return
+      }
+
+      if (editingSessionId) {
+        setSessions((currentSessions) =>
+          currentSessions.map((session) =>
+            session.id === data.id ? data : session
+          )
         )
+      } else {
+        setSessions((currentSessions) => [...currentSessions, data])
+      }
+
+      setIsAddingSession(false)
+      setEditingSessionId(null)
+      setSessionMovieId('')
+      setSessionHallId('')
+      setSessionTime('')
+      setSessionPrice('')
+    } catch (error) {
+      console.error(error)
+      }
+    }
+
+  const openSales = async () => {
+    const confirmed = window.confirm(
+      'Открыть продажи билетов во всех залах?'
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/halls/open-sales/',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        }
       )
-    } else {
-      setSessions((currentSessions) => [...currentSessions, data])
-    }
 
-    setIsAddingSession(false)
-    setEditingSessionId(null)
-    setSessionMovieId('')
-    setSessionHallId('')
-    setSessionTime('')
-    setSessionPrice('')
-  } catch (error) {
-    console.error(error)
-    }
-  }
+      if (!response.ok) {
+        throw new Error('Не удалось открыть продажи')
+      }
 
+      setHalls((currentHalls) =>
+        currentHalls.map((hall) => ({
+          ...hall,
+          is_active: true,
+        }))
+      )
+
+      alert('Продажи билетов открыты во всех залах.')
+    } catch (error) {
+        console.error(error)
+        alert('Не удалось открыть продажи билетов.')
+      }
+    }
   // Сеансы на выбранный день в календаре.
   const sessionsForSelectedDate = sessions.filter((session) => {
     const sessionDate = new Date(session.start_time).toLocaleDateString('en-CA')
 
     return sessionDate === selectedDate
   })
+  const selectedBookingSession = sessionsForSelectedDate.find(
+    (session) => session.id === Number(selectedBookingSessionId)
+  )
+  const sessionsForSelectedHallAndDate = sessions.filter((session) => {
+    const sessionDate = new Date(session.start_time).toLocaleDateString(
+      'en-CA'
+    )
 
+    return (
+      session.hall === Number(selectedHallId) &&
+      sessionDate === selectedHallConfigDate
+    )
+  })
+  
+  const bookingsForSelectedSession = bookings
+    .map((booking) => ({
+      ...booking,
+      tickets: booking.tickets.filter(
+        (ticket) => ticket.session_id === Number(selectedBookingSessionId)
+      ),
+    }))
+    .filter((booking) => booking.tickets.length > 0)
   return (
     <>
       <header className="page-header">
@@ -694,7 +776,10 @@ const saveSession = async () => {
                     name="chairs-hall"
                     value={hall.id}
                     checked={String(selectedHallId) === String(hall.id)}
-                    onChange={() => setSelectedHallId(hall.id)}
+                    onChange={() => {
+                      setSelectedHallId(hall.id)
+                      setSelectedSessionId('')
+                    }}
                   />
 
                   <span className="conf-step__selector">
@@ -703,7 +788,40 @@ const saveSession = async () => {
                 </li>
               ))}
             </ul>
+            <p className="conf-step__paragraph">
+              Выберите дату:
+            </p>
 
+            <input
+              type="date"
+              className="conf-step__input"
+              value={selectedHallConfigDate}
+              onChange={(event) => {
+                setSelectedHallConfigDate(event.target.value)
+                setSelectedSessionId('')
+              }}
+            />
+            <p className="conf-step__paragraph">
+              Выберите сеанс:
+            </p>
+
+            <select
+              className="conf-step__input"
+              value={selectedSessionId}
+              onChange={(event) => setSelectedSessionId(event.target.value)}
+            >
+              <option value="">Выберите сеанс</option>
+
+              {sessionsForSelectedHallAndDate.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.movie_title} —{' '}
+                  {new Date(session.start_time).toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </option>
+              ))}
+            </select>
             <p className="conf-step__paragraph">
               Укажите количество рядов и максимальное количество кресел в ряду:
             </p>
@@ -767,7 +885,7 @@ const saveSession = async () => {
 
                     return (
                       <div className="conf-step__row" key={rowNumber}>
-                        {seats
+                        {displayedSeats
                           .filter((seat) => seat.row === rowNumber)
                           .map((seat) => (
                             <span
@@ -780,6 +898,10 @@ const saveSession = async () => {
                               }`}
                               key={seat.id}
                               onClick={() => toggleSeatType(seat.id)}
+                              style={{
+                                opacity: seat.booked ? 0.5 : 1,
+                                cursor: seat.booked ? 'not-allowed' : 'pointer',
+                              }}
                             ></span>
                           ))}
                       </div>
@@ -796,6 +918,7 @@ const saveSession = async () => {
                 type="button"
                 className="conf-step__button conf-step__button-accent"
                 onClick={saveSeatChanges}
+                disabled={Boolean(selectedSessionId)}
               >
                 Сохранить
               </button>
@@ -1264,8 +1387,12 @@ const saveSession = async () => {
               Всё готово, теперь можно:
             </p>
 
-            <button className="conf-step__button conf-step__button-accent">
-              Открыть продажу билетов
+            <button
+              type="button"
+              className="conf-step__button conf-step__button-accent"
+              onClick={openSales}
+            >
+              Открыть продажи билетов
             </button>
           </div>
         </section>

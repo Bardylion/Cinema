@@ -12,6 +12,7 @@ class BookingAPITestCase(TestCase):
             name="Тестовый зал",
             rows=2,
             seats_per_row=3,
+            is_active=True,
         )
 
         self.seats = []

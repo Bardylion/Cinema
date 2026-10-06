@@ -6,6 +6,7 @@ from .views import (
     HallListView,
     MovieDetailView,
     MovieListView,
+    OpenSalesView,
     SeatDetailView,
     SeatListView,
     SessionDetailView,
@@ -44,4 +45,9 @@ urlpatterns = [
         name="hall-detail",
     ),
     path("admin/login/", AdminLoginView.as_view()),
+    path(
+        "halls/open-sales/",
+        OpenSalesView.as_view(),
+        name="hall-open-sales",
+    ),
 ]

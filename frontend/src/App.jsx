@@ -5,6 +5,7 @@ import HallPage from './pages/HallPage'
 import TicketPage from './pages/TicketPage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
+import MoviePage from './pages/MoviePage'
 
 function ProtectedAdminRoute({ children }) {
   const token = localStorage.getItem('adminToken')
@@ -135,6 +136,7 @@ function App() {
         }
       />
       <Route path="/admin/login" element={<AdminLoginPage />}/>
+      <Route path="/movie/:movieId" element={<MoviePage />} />
     </Routes>
   )
 }

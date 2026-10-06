@@ -78,6 +78,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "ticket_code",
+            "session_id",
             "movie",
             "hall",
             "start_time",
@@ -103,6 +104,12 @@ class BookingCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         session = attrs["session"]
         seats = attrs["seats"]
+
+        if not session.hall.is_active:
+            raise serializers.ValidationError(
+                "Продажи билетов для этого зала ещё не открыты."
+            )
+
         if session.start_time <= timezone.now():
             raise serializers.ValidationError("Нельзя забронировать прошедший сеанс.")
 

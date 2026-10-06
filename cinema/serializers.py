@@ -103,6 +103,7 @@ class HallSerializer(serializers.ModelSerializer):
             "seats_per_row",
             "standard_price",
             "vip_price",
+            "is_active",
         ]
 
     def create(self, validated_data):

@@ -26,7 +26,12 @@ function HallPage() {
   const rows = [...new Set(seats.map((seat) => seat.row))]
 
   const toggleSeat = (seat) => {
-    if (seat.booked || !session || new Date(session.start_time) < new Date()) {
+    if (
+      seat.booked ||
+      seat.seat_type === 'DISABLED' ||
+      !session ||
+      new Date(session.start_time) < new Date()
+    ) {
       return
     }
 
@@ -132,11 +137,13 @@ function HallPage() {
                         className={`buying-scheme__chair ${
                           seat.booked
                             ? 'buying-scheme__chair_taken'
-                            : selectedSeats.includes(seat.id)
-                              ? 'buying-scheme__chair_selected'
-                              : seat.seat_type === 'VIP'
-                                ? 'buying-scheme__chair_vip'
-                                : 'buying-scheme__chair_standart'
+                            : seat.seat_type === 'DISABLED'
+                              ? 'buying-scheme__chair_taken'
+                              : selectedSeats.includes(seat.id)
+                                ? 'buying-scheme__chair_selected'
+                                : seat.seat_type === 'VIP'
+                                  ? 'buying-scheme__chair_vip'
+                                  : 'buying-scheme__chair_standart'
                         }`}
                       ></span>
                     ))}

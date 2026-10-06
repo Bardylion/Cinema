@@ -5,6 +5,7 @@ class Hall(models.Model):
     name = models.CharField(max_length=100)  # название зала
     rows = models.PositiveIntegerField()  # количество рядов
     seats_per_row = models.PositiveIntegerField()  # мест в каждом ряду
+    is_active = models.BooleanField(default=False)
     standard_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,

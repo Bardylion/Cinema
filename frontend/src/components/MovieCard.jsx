@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import SessionList from './SessionList'
+import { Link } from 'react-router-dom'
 
 function MovieCard({ movies, selectedDate }) {
   const [sessions, setSessions] = useState([])
@@ -24,10 +25,6 @@ function MovieCard({ movies, selectedDate }) {
           )
         })
 
-        if (filteredSessions.length === 0) {
-          return null
-        }
-
         return (
           <section className="movie" key={movie.id}>
             <div className="movie__info">
@@ -41,7 +38,9 @@ function MovieCard({ movies, selectedDate }) {
 
               <div className="movie__description">
                 <h2 className="movie__title">
-                  {movie.title}
+                  <Link to={`/movie/${movie.id}`}>
+                    {movie.title}
+                  </Link>
                 </h2>
 
                 <p className="movie__synopsis">
