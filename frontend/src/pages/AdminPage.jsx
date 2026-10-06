@@ -871,9 +871,6 @@ function AdminPage() {
 
             <div className="conf-step__hall">
               <div className="conf-step__hall-wrapper">
-                <div className="conf-step__hall-screen">
-                  ЭКРАН
-                </div>
 
                 {selectedHallId &&
                   Array.from({
